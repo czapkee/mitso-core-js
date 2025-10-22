@@ -19,9 +19,14 @@
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  this.width = width;
+  this.height = height;
 }
+
+Rectangle.prototype.getArea = function getArea() {
+  return this.width * this.height;
+};
 
 /**
  * Returns the JSON representation of specified object
@@ -33,8 +38,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 /**
@@ -48,8 +53,11 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const obj = Object.create(proto);
+  const data = JSON.parse(json);
+  Object.assign(obj, data);
+  return obj;
 }
 
 /**
@@ -106,33 +114,144 @@ function fromJSON(/* proto, json */) {
  *  For more examples see unit tests.
  */
 
+function validateOrder(obj, newType) {
+  const order = ['element', 'id', 'class', 'attr', 'pseudoClass', 'pseudoElement'];
+  const newIndex = order.indexOf(newType);
+  for (let i = 0; i < obj.parts.length; i += 1) {
+    const existingType = obj.parts[i].type;
+    const existingIndex = order.indexOf(existingType);
+
+    if (newIndex < existingIndex) {
+      throw new Error('Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element');
+    }
+  }
+
+  return obj;
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    if (obj.parts.some((part) => part.type === 'element')) {
+      throw new Error('Element, id and pseudo-element should not occur more then one time inside the selector');
+    }
+
+    validateOrder(obj, 'element');
+    obj.parts.push({ type: 'element', value });
+    return obj;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    if (obj.parts.some((part) => part.type === 'id')) {
+      throw new Error('Element, id and pseudo-element should not occur more then one time inside the selector');
+    }
+
+    validateOrder(obj, 'id');
+    obj.parts.push({ type: 'id', value });
+    return obj;
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    validateOrder(obj, 'class');
+    obj.parts.push({ type: 'class', value });
+    return obj;
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    validateOrder(obj, 'attr');
+    obj.parts.push({ type: 'attr', value });
+    return obj;
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    validateOrder(obj, 'pseudoClass');
+    obj.parts.push({ type: 'pseudoClass', value });
+    return obj;
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    const obj = Object.create(this);
+    if (this.parts) {
+      obj.parts = [...this.parts];
+    } else {
+      obj.parts = [];
+    }
+
+    if (obj.parts.some((part) => part.type === 'pseudoElement')) {
+      throw new Error('Element, id and pseudo-element should not occur more then one time inside the selector');
+    }
+
+    validateOrder(obj, 'pseudoElement');
+    obj.parts.push({ type: 'pseudoElement', value });
+    return obj;
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    const obj = Object.create(this);
+    obj.combined = {
+      selector1,
+      combinator,
+      selector2,
+    };
+    return obj;
+  },
+
+  stringify() {
+    if (this.combined) {
+      return `${this.combined.selector1.stringify()} ${this.combined.combinator} ${this.combined.selector2.stringify()}`;
+    }
+
+    if (!this.parts) {
+      return '';
+    }
+    const order = ['element', 'id', 'class', 'attr', 'pseudoClass', 'pseudoElement'];
+    const sortedParts = this.parts.slice()
+      .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+    return sortedParts.map((part) => {
+      switch (part.type) {
+        case 'element': return part.value;
+        case 'id': return `#${part.value}`;
+        case 'class': return `.${part.value}`;
+        case 'attr': return `[${part.value}]`;
+        case 'pseudoClass': return `:${part.value}`;
+        case 'pseudoElement': return `::${part.value}`;
+        default: return '';
+      }
+    }).join('');
   },
 };
 
